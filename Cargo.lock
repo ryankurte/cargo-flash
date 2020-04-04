@@ -553,8 +553,7 @@ dependencies = [
 [[package]]
 name = "gdb-server"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7144d336a53d330643ba1ccc276e69850e44987c1c3eab5681557d774bb900c"
+source = "git+https://github.com/probe-rs/probe-rs?branch=enable-hard-reset#711b1a63fb7a9e3e5a56618eaa5872ba84ed1c17"
 dependencies = [
  "async-std",
  "futures",
@@ -958,8 +957,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "probe-rs"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e695c6c490ad75e4bc57b998bfe98333ff8816191bc4f124a81ba6c5c128ac61"
+source = "git+https://github.com/probe-rs/probe-rs?branch=enable-hard-reset#711b1a63fb7a9e3e5a56618eaa5872ba84ed1c17"
 dependencies = [
  "base64",
  "bitfield",
@@ -987,8 +985,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-t2rust"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e0e2d177a33e8c8a46d98767fb01877f1c466826b9c25f88749f35140d0aae0"
+source = "git+https://github.com/probe-rs/probe-rs?branch=enable-hard-reset#711b1a63fb7a9e3e5a56618eaa5872ba84ed1c17"
 dependencies = [
  "base64",
  "proc-macro2 1.0.9",
