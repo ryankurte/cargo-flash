@@ -43,6 +43,11 @@ struct Opt {
     #[structopt(long = "probe-index")]
     n: Option<usize>,
     #[structopt(
+        long = "connect-under-reset",
+        help = "Use this flag to assert the nreset & ntrst pins during attaching the probe to the chip."
+    )]
+    connect_under_reset: bool,
+    #[structopt(
         name = "gdb",
         long = "gdb",
         help = "Use this flag to automatically spawn a GDB server instance after flashing the target."
@@ -138,6 +143,7 @@ const ARGUMENTS_TO_REMOVE: &[&str] = &[
     "gdb-connection-string=",
     "nrf-recover",
     "log=",
+    "connect-under-reset",
 ];
 
 fn main() {
@@ -300,7 +306,22 @@ fn main_try() -> Result<(), failure::Error> {
 
     log::info!("Protocol speed {} kHz", protocol_speed);
 
-    let session = probe.attach(chip)?;
+    let session = if opt.connect_under_reset {
+        probe.attach_under_reset(chip)
+    } else {
+        let potential_session = probe.attach(chip);
+        match potential_session {
+            Ok(session) => Ok(session),
+            Err(session) => {
+                log::info!("The target seems to be unable to be attached to.");
+                log::info!(
+                    "A hard reset during attaching might help. This will reset the entire chip."
+                );
+                log::info!("Run with `--connect-under-reset` to enable this feature.");
+                Err(session)
+            }
+        }
+    }?;
     let core = session.attach_to_core(0)?;
 
     // Start timer.
