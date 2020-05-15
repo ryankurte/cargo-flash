@@ -21,7 +21,7 @@ use probe_rs::{
     architecture::arm::ap::AccessPortError,
     config::TargetSelector,
     flashing::{download_file_with_options, DownloadOptions, FlashProgress, Format, ProgressEvent},
-    DebugProbeError, Probe, WireProtocol,
+    DebugProbeError, DebugProbeSelector, Probe, WireProtocol,
 };
 
 #[derive(Debug, StructOpt)]
@@ -35,13 +35,18 @@ struct Opt {
     // nrf_recover: bool,
     #[structopt(name = "list-chips", long = "list-chips")]
     list_chips: bool,
+    #[structopt(
+        name = "list-probes",
+        long = "list-probes",
+        help = "Lists all the connected probes that can be seen. If udev rules or permissions are wrong, some probes might not be listed."
+    )]
+    list_probes: bool,
     #[structopt(name = "disable-progressbars", long = "disable-progressbars")]
     disable_progressbars: bool,
     #[structopt(name = "protocol", long = "protocol", default_value = "swd")]
     protocol: WireProtocol,
-    /// The number associated with the debug probe to use
-    #[structopt(long = "probe-index")]
-    n: Option<usize>,
+    #[structopt(long = "probe-selector")]
+    probe_selector: Option<DebugProbeSelector>,
     #[structopt(
         name = "gdb",
         long = "gdb",
@@ -127,6 +132,8 @@ const ARGUMENTS_TO_REMOVE: &[&str] = &[
     "flash-layout=",
     "chip-description-path=",
     "list-chips",
+    "list-probes",
+    "probe-selector=",
     "elf=",
     "work-dir=",
     "disable-progressbars",
@@ -173,6 +180,12 @@ fn main_try() -> Result<(), failure::Error> {
     let opt = Opt::from_iter(&args);
 
     logging::init(opt.log);
+
+    // If someone wants to list the connected probes, just do that and exit.
+    if opt.list_probes {
+        list_connected_devices()?;
+        std::process::exit(0);
+    }
 
     // Make sure we load the config given in the cli parameters.
     if let Some(cdp) = opt.chip_description_path {
@@ -250,23 +263,24 @@ fn main_try() -> Result<(), failure::Error> {
 
     let list = Probe::list_all();
 
-    let device = match opt.n {
-        Some(index) => list.get(index).ok_or_else(|| {
-            format_err!("Unable to open probe with index {}: Probe not found", index)
-        })?,
+    // If we got a probe selector as an argument, open the probe matching the selector if possible.
+    let mut probe = match opt.probe_selector {
+        Some(selector) => Probe::open(selector)?,
         None => {
             // Only automatically select a probe if there is only
             // a single probe detected.
             if list.len() > 1 {
-                return Err(format_err!("More than a single probe detected. Use the --probe-index argument to select which probe to use."));
+                return Err(format_err!("More than a single probe detected. Use the --probe-selector argument to select which probe to use."));
             }
 
-            list.first()
-                .ok_or_else(|| format_err!("no supported probe was found"))?
+            Probe::open(
+                list.first()
+                    .ok_or_else(|| format_err!("No supported probe was found"))?,
+            )?
         }
     };
 
-    let mut probe = Probe::from_probe_info(&device)?;
+    // Select the protocol if any was passed as an argument.
     probe.select_protocol(opt.protocol)?;
 
     // Disabled for now
@@ -569,6 +583,7 @@ impl From<std::io::Error> for DownloadError {
 ///     "foo", // Can be "--foo"
 ///     "bar=", // Can be "--bar=value" and "--bar value"
 /// ];
+/// ```
 fn remove_arguments(arguments_to_remove: &[&'static str], arguments: &mut Vec<String>) {
     // We iterate all arguments that possibly have to be removed
     // and remove them if they occur to be in the input.
@@ -652,4 +667,21 @@ fn remove_arguments_test() {
     remove_arguments(&arguments_to_remove, &mut arguments);
 
     assert!(arguments.len() == 0);
+}
+
+/// Lists all connected devices
+fn list_connected_devices() -> Result<(), DebugProbeError> {
+    let links = Probe::list_all();
+
+    if !links.is_empty() {
+        println!("The following devices were found:");
+        links
+            .iter()
+            .enumerate()
+            .for_each(|(num, link)| println!("[{}]: {:?}", num, link));
+    } else {
+        println!("No devices were found.");
+    }
+
+    Ok(())
 }
